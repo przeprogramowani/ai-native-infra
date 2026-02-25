@@ -1,0 +1,16 @@
+name: ai-toolkit
+version: 1.0.0
+description: "Extension pack distributing team Agent Skills for code quality and conventions"
+namespace: 10xdevs
+license: MIT
+
+skills:
+  - code-review
+
+commands: []
+
+presets:
+  default:
+    description: "Full toolkit"
+    skills: [code-review]
+    commands: []
