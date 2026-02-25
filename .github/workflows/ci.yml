@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate pack.yaml
+        working-directory: packages/ai-toolkit
+        run: |
+          node -e "
+            const yaml = require('fs').readFileSync('pack.yaml', 'utf8');
+            const required = ['name:', 'version:', 'description:', 'namespace:'];
+            const missing = required.filter(f => !yaml.split('\n').some(l => l.startsWith(f)));
+            if (missing.length) {
+              console.error('Missing required fields:', missing.join(', '));
+              process.exit(1);
+            }
+            console.log('pack.yaml is valid');
+          "
+
+      - name: Validate SKILL.md frontmatter
+        working-directory: packages/ai-toolkit
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+
+            const skillsDir = 'skills';
+            if (!fs.existsSync(skillsDir)) {
+              console.error('skills/ directory not found');
+              process.exit(1);
+            }
+
+            const dirs = fs.readdirSync(skillsDir, { withFileTypes: true })
+              .filter(d => d.isDirectory())
+              .map(d => d.name);
+
+            let errors = [];
+            for (const dir of dirs) {
+              const skillPath = path.join(skillsDir, dir, 'SKILL.md');
+              if (!fs.existsSync(skillPath)) {
+                errors.push(dir + '/SKILL.md not found');
+                continue;
+              }
+
+              const content = fs.readFileSync(skillPath, 'utf8');
+              const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+              if (!fmMatch) {
+                errors.push(dir + '/SKILL.md missing frontmatter');
+                continue;
+              }
+
+              const fm = fmMatch[1];
+              const nameMatch = fm.match(/^name:\s*(.+)$/m);
+              const descMatch = fm.match(/^description:/m);
+
+              if (!nameMatch) {
+                errors.push(dir + '/SKILL.md missing name in frontmatter');
+              } else if (nameMatch[1].trim() !== dir) {
+                errors.push(dir + '/SKILL.md frontmatter name \"' + nameMatch[1].trim() + '\" does not match directory \"' + dir + '\"');
+              }
+
+              if (!descMatch) {
+                errors.push(dir + '/SKILL.md missing description in frontmatter');
+              }
+            }
+
+            if (errors.length) {
+              errors.forEach(e => console.error('Error:', e));
+              process.exit(1);
+            }
+            console.log('All SKILL.md files are valid (' + dirs.length + ' checked)');
+          "
+
+      - name: Verify npm pack
+        working-directory: packages/ai-toolkit
+        run: npm pack --dry-run
+
+  publish:
+    needs: validate
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: eu-central-1
+
+      - name: Login to CodeArtifact
+        run: |
+          aws codeartifact login \
+            --tool npm \
+            --domain devs10x \
+            --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
+            --repository npm \
+            --region eu-central-1
+
+      - name: Publish package
+        working-directory: packages/ai-toolkit
+        run: npm publish
