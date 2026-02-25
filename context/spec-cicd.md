@@ -3,22 +3,28 @@
 ## Goal
 GitHub Actions workflow to validate and publish the Extension Pack.
 
-## Two jobs:
-
-### Validate (all PRs and pushes to master, no AWS needed)
-- Check pack.yaml structure (required fields: name, version, description, namespace)
-- Check each SKILL.md has frontmatter with name + description
-- Verify frontmatter name matches directory name
-- Run `npm pack --dry-run`
-
-### Publish (push to master only, after validate)
-- OIDC authentication with AWS (no long-lived secrets!)
-- Login to CodeArtifact
-- `npm publish`
-
-## Key requirements:
-- `permissions: id-token: write` for OIDC
-- Use `aws-actions/configure-aws-credentials@v4`
-- Secrets: AWS_ACCOUNT_ID and AWS_ROLE_ARN
-- Inline Node.js validation (no external tools needed)
+## Configuration
 - Branch: `master` (not `main`)
+- AWS region: `eu-central-1`
+- CodeArtifact domain: `devs10x`
+- CodeArtifact repository: `npm`
+- Workflow file: `.github/workflows/ci.yml`
+- Package location: `packages/ai-toolkit/` (relative to repo root)
+- GitHub secrets: `AWS_ACCOUNT_ID` and `AWS_ROLE_ARN`
+
+### OIDC Authentication
+- Action: `aws-actions/configure-aws-credentials@v4`
+- Role: referenced via `${{ secrets.AWS_ROLE_ARN }}`
+- Required workflow permission: `id-token: write`
+
+### Validation checks (validate job)
+1. `pack.yaml` exists with required fields: `name`, `version`, `description`, `namespace`
+2. Each `skills/*/SKILL.md` has YAML frontmatter with `name` and `description`
+3. Frontmatter `name` matches the skill's directory name
+4. `npm pack --dry-run` succeeds
+
+### Secrets setup
+```bash
+gh secret set AWS_ACCOUNT_ID --body "<account-id>" --repo <owner>/<repo>
+gh secret set AWS_ROLE_ARN --body "<role-arn>" --repo <owner>/<repo>
+```
