@@ -1,0 +1,16 @@
+name: ai-toolkit
+version: 1.0.0
+description: "Extension Pack distributing Agent Skills for 10xdevs teams"
+namespace: 10xdevs
+license: MIT
+
+skills:
+  - code-review
+
+commands: []
+
+presets:
+  default:
+    description: "Full toolkit"
+    skills: [code-review]
+    commands: []

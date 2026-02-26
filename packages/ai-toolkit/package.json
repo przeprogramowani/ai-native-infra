@@ -1,0 +1,21 @@
+{
+  "name": "@10xdevs/ai-toolkit",
+  "version": "1.0.0",
+  "description": "Extension Pack distributing Agent Skills for 10xdevs teams",
+  "license": "MIT",
+  "bin": {
+    "ai-toolkit": "./bin/cli.js"
+  },
+  "files": [
+    "skills/",
+    "commands/",
+    "bin/",
+    "rules/",
+    "pack.yaml",
+    "install.js",
+    "uninstall.js"
+  ],
+  "scripts": {
+    "postinstall": "node install.js"
+  }
+}
