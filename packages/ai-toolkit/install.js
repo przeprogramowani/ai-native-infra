@@ -15,7 +15,12 @@ function findProjectRoot() {
   let dir = __dirname;
   while (dir !== path.dirname(dir)) {
     if (path.basename(dir) === 'node_modules') {
-      return path.dirname(dir);
+      const root = path.dirname(dir);
+      // Skip if inside npx cache — the CLI handles installation via PROJECT_ROOT
+      if (root.includes(path.join('.npm', '_npx'))) {
+        return null;
+      }
+      return root;
     }
     dir = path.dirname(dir);
   }
@@ -132,6 +137,10 @@ function installRules(projectRoot) {
 
 function main() {
   const projectRoot = findProjectRoot();
+  if (!projectRoot) {
+    console.warn(`[${PACKAGE_NAME}] Could not determine project root. Skipping install.`);
+    return;
+  }
   const claudeDir = path.join(projectRoot, '.claude');
   const skillsTargetDir = path.join(claudeDir, 'skills');
   const installedFiles = [];
